@@ -1,0 +1,914 @@
+<html>
+
+<head>
+<title>ICG WebGL &mdash; HW1 (B07705051)</title>
+<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">
+
+<script type="text/javascript" src="./js/glMatrix-0.9.5.min.js"></script>
+<script type="text/javascript" src="./js/webgl-utils.js"></script>
+
+<script id="gouraud-vs" type="vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec3 aFrontColor;
+    attribute vec3 aVertexNormal;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+
+    varying vec4 fragcolor;
+
+    struct Light
+    {
+        float open;
+        vec3 position;
+        vec3 color;
+    };
+
+    uniform Light Light0;
+    uniform Light Light1;
+    uniform Light Light2;
+
+    vec3 calcPointLight(Light light, vec3 k, vec3 vertPos, vec3 normalInterp) {
+        vec3 N = normalize(normalInterp);
+    	vec3 L = normalize(light.position - vertPos);
+
+        // Lambert's cosine law
+        float lambertian = max(dot(N, L), 0.0);
+        float spec = 0.0;
+        if(lambertian > 0.0) {
+            vec3 R = reflect(-L, N);      // Reflected light vector
+            vec3 V = -normalize(vertPos);
+            // Compute the specular term
+            float specAngle = max(dot(R, V), 0.0);
+            spec = pow(specAngle, 16.0);
+        }
+
+        vec3 ambient = light.color * k.x * aFrontColor;
+    	vec3 diffuse = light.color * k.y * aFrontColor * lambertian;
+    	vec3 specular = light.color * k.z * spec;
+
+        return ambient + diffuse + specular;
+    }
+
+    void main(void) {
+        vec4 vertPos4 = uMVMatrix * vec4(aVertexPosition, 1.0);
+        gl_Position = uPMatrix * vertPos4;
+        vec3 vertPos = vertPos4.xyz;
+
+        mat3 normalMatrix = mat3(uMVMatrix);
+    	vec3 normalInterp = normalMatrix * aVertexNormal;
+
+        vec3 gouraud = vec3(0.0);
+        if (Light0.open > 0.0) {
+            gouraud += calcPointLight(Light0, vec3(0.1,0.6,0.3), vertPos, normalInterp);
+        }
+        if (Light1.open > 0.0) {
+            gouraud += calcPointLight(Light1, vec3(0.1,0.6,0.3), vertPos, normalInterp);
+        }
+        if (Light2.open > 0.0) {
+            gouraud += calcPointLight(Light2, vec3(0.1,0.6,0.3), vertPos, normalInterp);
+        }
+        fragcolor = vec4(gouraud, 1.0);
+    }
+</script>
+<script id="gouraud-fs" type="fragment">
+    precision mediump float;
+
+    varying vec4 fragcolor;
+
+    void main(void) {
+        gl_FragColor = fragcolor;
+    }
+</script>
+
+<script id="phong-vs" type="vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec3 aFrontColor;
+    attribute vec3 aVertexNormal;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+
+    varying vec3 normalInterp;
+    varying vec3 vertPos;
+    varying vec3 frontColor;
+
+    struct Light
+    {
+        float open;
+        vec3 position;
+        vec3 color;
+    };
+
+    uniform Light Light0;
+    uniform Light Light1;
+    uniform Light Light2;
+
+    varying float light0_open;
+    varying vec3 light0_pos;
+    varying vec3 light0_color;
+    varying float light1_open;
+    varying vec3 light1_pos;
+    varying vec3 light1_color;
+    varying float light2_open;
+    varying vec3 light2_pos;
+    varying vec3 light2_color;
+
+    void main(void) {
+        vec4 vertPos4 = uMVMatrix * vec4(aVertexPosition, 1.0);
+        gl_Position = uPMatrix * vertPos4;
+        vertPos = vertPos4.xyz;
+
+        mat3 normalMatrix = mat3(uMVMatrix);
+    	normalInterp = normalMatrix * aVertexNormal;
+        
+        frontColor = aFrontColor;
+
+        light0_open = Light0.open;
+        light0_pos = Light0.position;
+        light0_color = Light0.color;
+        light1_open = Light1.open;
+        light1_pos = Light1.position;
+        light1_color = Light1.color;
+        light2_open = Light2.open;
+        light2_pos = Light2.position;
+        light2_color = Light2.color;
+    }
+</script>
+<script id="phong-fs" type="fragment">
+    precision mediump float;
+
+    varying vec3 normalInterp;
+    varying vec3 vertPos;
+    varying vec3 frontColor;
+
+    struct Light
+    {
+        float open;
+        vec3 position;
+        vec3 color;
+    };
+
+    varying float light0_open;
+    varying vec3 light0_pos;
+    varying vec3 light0_color;
+    varying float light1_open;
+    varying vec3 light1_pos;
+    varying vec3 light1_color;
+    varying float light2_open;
+    varying vec3 light2_pos;
+    varying vec3 light2_color;
+
+    vec3 calcPointLight(Light light, vec3 k) {
+        vec3 N = normalize(normalInterp);
+    	vec3 L = normalize(light.position - vertPos);
+
+        // Lambert's cosine law
+        float lambertian = max(dot(N, L), 0.0);
+        float spec = 0.0;
+        if(lambertian > 0.0) {
+            vec3 R = reflect(-L, N);      // Reflected light vector
+            vec3 V = -normalize(vertPos);
+            // Compute the specular term
+            float specAngle = max(dot(R, V), 0.0);
+            spec = pow(specAngle, 16.0);
+        }
+
+        vec3 ambient = light.color * k.x * frontColor;
+    	vec3 diffuse = light.color * k.y * frontColor * lambertian;
+    	vec3 specular = light.color * k.z * spec;
+
+        return ambient + diffuse + specular;
+    }
+
+    void main(void) {
+        Light light0;
+        light0.open = light0_open;
+        light0.position = light0_pos;
+        light0.color = light0_color;
+        Light light1;
+        light1.open = light1_open;
+        light1.position = light1_pos;
+        light1.color = light1_color;
+        Light light2;
+        light2.open = light2_open;
+        light2.position = light2_pos;
+        light2.color = light2_color;
+
+        vec3 color = vec3(0.0);
+        if (light0.open > 0.0) {
+            color += calcPointLight(light0, vec3(0.1,0.6,0.3));
+        }
+        if (light1.open > 0.0) {
+            color += calcPointLight(light1, vec3(0.1,0.6,0.3));
+        }
+        if (light2.open > 0.0) {
+            color += calcPointLight(light2, vec3(0.1,0.6,0.3));
+        }
+        gl_FragColor = vec4(color, 1.0);
+    }
+</script>
+
+<script id="flat-vs" type="vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec3 aFrontColor;
+    attribute vec3 aVertexNormal;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+
+    varying vec3 vertPos;
+    varying vec3 frontColor;
+    varying vec3 L0;
+    varying vec3 L1;
+    varying vec3 L2;
+
+    struct Light
+    {
+        float open;
+        vec3 position;
+        vec3 color;
+    };
+
+    uniform Light Light0;
+    uniform Light Light1;
+    uniform Light Light2;
+    uniform float shininess;
+
+    varying float light0_open;
+    varying vec3 light0_pos;
+    varying vec3 light0_color;
+    varying float light1_open;
+    varying vec3 light1_pos;
+    varying vec3 light1_color;
+    varying float light2_open;
+    varying vec3 light2_pos;
+    varying vec3 light2_color;
+
+    void main(void) {
+        vec4 vertPos4 = uMVMatrix * vec4(aVertexPosition, 1.0);
+        gl_Position = uPMatrix * vertPos4;
+        vertPos = vertPos4.xyz;
+
+        frontColor = aFrontColor;
+
+        light0_open = Light0.open;
+        light0_pos = Light0.position;
+        light0_color = Light0.color;
+        light1_open = Light1.open;
+        light1_pos = Light1.position;
+        light1_color = Light1.color;
+        light2_open = Light2.open;
+        light2_pos = Light2.position;
+        light2_color = Light2.color;
+
+        L0 = normalize(Light0.position - vertPos);
+        L1 = normalize(Light1.position - vertPos);
+        L2 = normalize(Light2.position - vertPos);
+    }
+</script>
+<script id="flat-fs" type="fragment">
+    #extension GL_OES_standard_derivatives : enable
+    precision mediump float;
+
+    varying vec3 vertPos;
+    varying vec3 frontColor;
+    varying vec3 L0;
+    varying vec3 L1;
+    varying vec3 L2;
+
+    struct Light
+    {
+        float open;
+        vec3 position;
+        vec3 color;
+    };
+
+    varying float light0_open;
+    varying vec3 light0_pos;
+    varying vec3 light0_color;
+    varying float light1_open;
+    varying vec3 light1_pos;
+    varying vec3 light1_color;
+    varying float light2_open;
+    varying vec3 light2_pos;
+    varying vec3 light2_color;
+
+    vec3 calcPointLight(Light light, vec3 Lx, vec3 k, vec3 N) {
+    	vec3 L = Lx;
+
+        // Lambert's cosine law
+        float lambertian = max(dot(N, L), 0.0);
+        float spec = 0.0;
+        if(lambertian > 0.0) {
+            vec3 R = reflect(-L, N);      // Reflected light vector
+            vec3 V = -normalize(vertPos);
+            // Compute the specular term
+            float specAngle = max(dot(R, V), 0.0);
+            spec = pow(specAngle, 16.0);
+        }
+
+        vec3 ambient = light.color * k.x * frontColor;
+    	vec3 diffuse = light.color * k.y * frontColor * lambertian;
+    	vec3 specular = light.color * k.z * spec;
+
+        return ambient + diffuse + specular;
+    }
+
+    void main(void) {
+        Light light0;
+        light0.open = light0_open;
+        light0.position = light0_pos;
+        light0.color = light0_color;
+        Light light1;
+        light1.open = light1_open;
+        light1.position = light1_pos;
+        light1.color = light1_color;
+        Light light2;
+        light2.open = light2_open;
+        light2.position = light2_pos;
+        light2.color = light2_color;
+
+        vec3 dx = dFdx(vertPos);
+        vec3 dy = dFdy(vertPos);
+        vec3 N = normalize(cross(dx, dy));
+
+        vec3 color = vec3(0.0);
+        if (light0.open > 0.0) {
+            color += calcPointLight(light0, L0, vec3(0.1,0.6,0.3), N);
+        }
+        if (light1.open > 0.0) {
+            color += calcPointLight(light1, L1, vec3(0.1,0.6,0.3), N);
+        }
+        if (light2.open > 0.0) {
+            color += calcPointLight(light2, L2, vec3(0.1,0.6,0.3), N);
+        }
+        gl_FragColor = vec4(color, 1.0);
+    }
+</script>
+
+<script type="text/javascript">
+    // common variables
+    var gl;
+    var shaderProgramList = {phong:"", gouraud:"", flat:""};;
+
+    var mvMatrix = mat4.create();
+    var pMatrix  = mat4.create();
+
+    var teapotVertexPositionBuffer;
+    var teapotVertexNormalBuffer;
+    var teapotVertexFrontColorBuffer;
+
+    var teapotAngle = 180;
+    var lastTime    = 0;
+
+    function initGL(canvas) {
+        try {
+            gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+            gl.viewportWidth  = canvas.width;
+            gl.viewportHeight = canvas.height;
+        } 
+        catch (e) {
+        }
+
+        if (!gl) {
+            alert("Could not initialise WebGL, sorry :-(");
+        }
+
+        if(!gl.getExtension('OES_standard_derivatives')) {
+            throw 'extension not support';
+        }
+    }
+
+    function getShader(gl, id) {
+        var shaderScript = document.getElementById(id);
+        if (!shaderScript) {
+            return null;
+        }
+
+        var shaderSource = "";
+        var k = shaderScript.firstChild;
+        while (k) {
+            if (k.nodeType == 3) {
+                shaderSource += k.textContent;
+            }
+
+            k = k.nextSibling;
+        }
+
+        var shader;
+        if (shaderScript.type == "fragment") {
+            shader = gl.createShader(gl.FRAGMENT_SHADER);
+        } 
+        else if (shaderScript.type == "vertex") {
+            shader = gl.createShader(gl.VERTEX_SHADER);
+        } 
+        else {
+            return null;
+        }
+
+        gl.shaderSource(shader, shaderSource);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            alert(gl.getShaderInfoLog(shader));
+            return null;
+        }
+
+        return shader;
+    }
+
+    function initShaderID(fID, vID) {
+        var fragmentShader = getShader(gl, fID);
+        var vertexShader   = getShader(gl, vID);
+
+        var shaderProgram = gl.createProgram();
+        gl.attachShader(shaderProgram, vertexShader);
+        gl.attachShader(shaderProgram, fragmentShader);
+        gl.linkProgram(shaderProgram);
+
+        if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+            alert("Could not initialise shaders");
+        }
+
+        gl.useProgram(shaderProgram);
+
+        shaderProgram.vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+        gl.enableVertexAttribArray(shaderProgram.vertexPositionAttribute);
+
+        shaderProgram.vertexFrontColorAttribute = gl.getAttribLocation(shaderProgram, "aFrontColor");
+        gl.enableVertexAttribArray(shaderProgram.vertexFrontColorAttribute);
+
+        shaderProgram.vertexNormalAttribute = gl.getAttribLocation(shaderProgram, "aVertexNormal");
+        gl.enableVertexAttribArray(shaderProgram.vertexNormalAttribute);
+
+        shaderProgram.pMatrixUniform  = gl.getUniformLocation(shaderProgram, "uPMatrix");
+        shaderProgram.mvMatrixUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+
+        shaderProgram.Light0_open = gl.getUniformLocation(shaderProgram, "Light0.open");
+        shaderProgram.Light0_pos = gl.getUniformLocation(shaderProgram, "Light0.position");
+        shaderProgram.Light0_color = gl.getUniformLocation(shaderProgram, "Light0.color");
+        shaderProgram.Light1_open = gl.getUniformLocation(shaderProgram, "Light1.open");
+        shaderProgram.Light1_pos = gl.getUniformLocation(shaderProgram, "Light1.position");
+        shaderProgram.Light1_color = gl.getUniformLocation(shaderProgram, "Light1.color");
+        shaderProgram.Light2_open = gl.getUniformLocation(shaderProgram, "Light2.open");
+        shaderProgram.Light2_pos = gl.getUniformLocation(shaderProgram, "Light2.position");
+        shaderProgram.Light2_color = gl.getUniformLocation(shaderProgram, "Light2.color");
+
+        return shaderProgram;
+    }
+
+    function initShaders() {
+        shaderProgramList["phong"] = initShaderID("phong-fs", "phong-vs");
+        shaderProgramList["gouraud"] = initShaderID("gouraud-fs", "gouraud-vs");
+        shaderProgramList["flat"] = initShaderID("flat-fs", "flat-vs");
+	}
+
+    function setMatrixUniforms() {
+        gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
+        gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);
+    }
+
+    function degToRad(degrees) {
+        return degrees * Math.PI / 180;
+    }
+
+    function handleLoadedTeapot(teapotData) {
+        teapotVertexPositionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexPositionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(teapotData.vertexPositions), gl.STATIC_DRAW);
+        teapotVertexPositionBuffer.itemSize = 3;
+        teapotVertexPositionBuffer.numItems = teapotData.vertexPositions.length / 3;
+
+        teapotVertexNormalBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexNormalBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(teapotData.vertexNormals), gl.STATIC_DRAW);
+        teapotVertexNormalBuffer.itemSize = 3;
+        teapotVertexNormalBuffer.numItems = teapotData.vertexNormals.length / 3;
+
+        teapotVertexFrontColorBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexFrontColorBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(teapotData.vertexFrontcolors), gl.STATIC_DRAW);
+        teapotVertexFrontColorBuffer.itemSize = 3;
+        teapotVertexFrontColorBuffer.numItems = teapotData.vertexFrontcolors.length / 3;
+    }
+
+    function Light(pos, color){
+        this.open = 1.0;
+        this.position = pos;
+        this.color = color;
+    }
+    var Light0 = new Light([30, 20, -25], [1.0, 0.3, 0.3]);
+    var Light1 = new Light([0, 20, -25], [0.3, 1.0, 0.3]);
+    var Light2 = new Light([-30, 20, -25], [0.3, 0.3, 1.0]);
+
+    function setLight(shader){
+        var color = [0, 0, 0];
+        color[0] = parseFloat(document.getElementById("r0").value) / 255;
+        color[1] = parseFloat(document.getElementById("g0").value) / 255;
+        color[2] = parseFloat(document.getElementById("b0").value) / 255;
+        if(document.getElementById("Light0").checked)
+            Light0.open = 1.0;
+        else
+            Light0.open = -1.0;
+        Light0.color = color;
+        var pos = [0, 0, 0];
+        pos[0] = parseFloat(document.getElementById("x0").value);
+        pos[1] = parseFloat(document.getElementById("y0").value);
+        pos[2] = parseFloat(document.getElementById("z0").value);
+        Light0.position = pos;
+        gl.uniform1f(shader.Light0_open, Light0.open);
+        gl.uniform3f(shader.Light0_pos, Light0.position[0], Light0.position[1], Light0.position[2]);
+        gl.uniform3f(shader.Light0_color, Light0.color[0], Light0.color[1], Light0.color[2]);
+
+
+        color[0] = parseFloat(document.getElementById("r1").value) / 255;
+        color[1] = parseFloat(document.getElementById("g1").value) / 255;
+        color[2] = parseFloat(document.getElementById("b1").value) / 255;
+        if(document.getElementById("Light1").checked)
+            Light1.open = 1.0;
+        else
+            Light1.open = -1.0;
+        Light1.color = color;
+        pos[0] = parseFloat(document.getElementById("x1").value);
+        pos[1] = parseFloat(document.getElementById("y1").value);
+        pos[2] = parseFloat(document.getElementById("z1").value);
+        Light1.position = pos;
+        gl.uniform1f(shader.Light1_open, Light1.open);
+        gl.uniform3f(shader.Light1_pos, Light1.position[0], Light1.position[1], Light1.position[2]);
+        gl.uniform3f(shader.Light1_color, Light1.color[0], Light1.color[1], Light1.color[2]);
+
+        color[0] = parseFloat(document.getElementById("r2").value) / 255;
+        color[1] = parseFloat(document.getElementById("g2").value) / 255;
+        color[2] = parseFloat(document.getElementById("b2").value) / 255;
+        if(document.getElementById("Light2").checked)
+            Light2.open = 1.0;
+        else
+            Light2.open = -1.0;
+        Light2.color = color;
+        pos[0] = parseFloat(document.getElementById("x2").value);
+        pos[1] = parseFloat(document.getElementById("y2").value);
+        pos[2] = parseFloat(document.getElementById("z2").value);
+        Light2.position = pos;
+        gl.uniform1f(shader.Light2_open, Light2.open);
+        gl.uniform3f(shader.Light2_pos, Light2.position[0], Light2.position[1], Light2.position[2]);
+        gl.uniform3f(shader.Light2_color, Light2.color[0], Light2.color[1], Light2.color[2]);
+    }
+
+    function loadTeapot() {
+        var request = new XMLHttpRequest();
+        request.open("GET", "./model/Teapot.json");
+        request.onreadystatechange = function () {
+            if (request.readyState == 4) {
+                handleLoadedTeapot(JSON.parse(request.responseText));
+            }
+        }
+        request.send();
+    }
+
+    var shadingType = "gouraud";
+    var shearMatrix = mat4.create();
+
+    function drawScene() {
+        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        if (teapotVertexPositionBuffer   == null || 
+            teapotVertexNormalBuffer     == null || 
+            teapotVertexFrontColorBuffer == null) {
+            
+            return;
+        }
+
+        // Setup Projection Matrix
+        if(document.getElementById("Pot0").checked) {
+            mat4.perspective(45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0, pMatrix);
+        
+            shadingType = document.getElementById("ShadingType0").value;
+            shaderProgram = shaderProgramList[shadingType];
+            gl.useProgram(shaderProgram);
+            setLight(shaderProgram);
+
+            // Setup Model-View Matrix
+            var tr = [0, 0, 0];
+            tr[0] = document.getElementById("tx0").value;
+            tr[1] = document.getElementById("ty0").value;
+            tr[2] = document.getElementById("tz0").value;
+            mat4.identity(mvMatrix);
+            mat4.translate(mvMatrix, tr);
+
+            mat4.identity(shearMatrix);
+            shearMatrix[4] = (shearMatrix[4] + document.getElementById("shearx0").value / 10);
+            shearMatrix[9] = (shearMatrix[9] + document.getElementById("sheary0").value / 10);
+            shearMatrix[2] = (shearMatrix[2] + document.getElementById("shearz0").value / 10);
+            mat4.multiply(mvMatrix, shearMatrix);
+
+            mat4.rotate(mvMatrix, degToRad(teapotAngle), [0, 1, 0]);
+            var sc = [0, 0, 0];
+            sc[0] = document.getElementById("scaleX0").value / 10;
+            sc[1] = document.getElementById("scaleY0").value / 10;
+            sc[2] = document.getElementById("scaleZ0").value / 10;
+            mat4.scale(mvMatrix, sc);
+            
+            gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
+            gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);
+
+            // Setup teapot position data
+            gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexPositionBuffer);
+            gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 
+                                teapotVertexPositionBuffer.itemSize, 
+                                gl.FLOAT, 
+                                false, 
+                                0, 
+                                0);
+
+            // Setup teapot front color data
+            gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexFrontColorBuffer);
+            gl.vertexAttribPointer(shaderProgram.vertexFrontColorAttribute, 
+                                teapotVertexFrontColorBuffer.itemSize, 
+                                gl.FLOAT, 
+                                false, 
+                                0, 
+                                0);
+
+            // Setup teapot Vertex Normal data
+            gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexNormalBuffer);
+            gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, 
+                                teapotVertexNormalBuffer.itemSize, 
+                                gl.FLOAT, 
+                                false, 
+                                0, 
+                                0);
+
+            gl.drawArrays(gl.TRIANGLES, 0, teapotVertexPositionBuffer.numItems);
+        }
+
+        if(document.getElementById("Pot1").checked) {
+            shadingType = document.getElementById("ShadingType1").value;
+            shaderProgram = shaderProgramList[shadingType];
+            gl.useProgram(shaderProgram);
+            setLight(shaderProgram);
+
+            // Setup Model-View Matrix
+            tr[0] = document.getElementById("tx1").value;
+            tr[1] = document.getElementById("ty1").value;
+            tr[2] = document.getElementById("tz1").value;
+            mat4.identity(mvMatrix);
+            mat4.translate(mvMatrix, tr);
+
+            mat4.identity(shearMatrix);
+            shearMatrix[4] = (shearMatrix[4] + document.getElementById("shearx1").value / 10);
+            shearMatrix[9] = (shearMatrix[9] + document.getElementById("sheary1").value / 10);
+            shearMatrix[2] = (shearMatrix[2] + document.getElementById("shearz1").value / 10);
+            mat4.multiply(mvMatrix, shearMatrix);
+
+            mat4.rotate(mvMatrix, degToRad(teapotAngle), [0, 1, 0]);
+            sc[0] = document.getElementById("scaleX1").value / 10;
+            sc[1] = document.getElementById("scaleY1").value / 10;
+            sc[2] = document.getElementById("scaleZ1").value / 10;
+            mat4.scale(mvMatrix,sc);
+            
+            
+            gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
+            gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);
+
+            // Setup teapot position data
+            gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexPositionBuffer);
+            gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 
+                                teapotVertexPositionBuffer.itemSize, 
+                                gl.FLOAT, 
+                                false, 
+                                0, 
+                                0);
+
+            // Setup teapot front color data
+            gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexFrontColorBuffer);
+            gl.vertexAttribPointer(shaderProgram.vertexFrontColorAttribute, 
+                                teapotVertexFrontColorBuffer.itemSize, 
+                                gl.FLOAT, 
+                                false, 
+                                0, 
+                                0);
+
+            // Setup teapot Vertex Normal data
+            gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexNormalBuffer);
+            gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, 
+                                teapotVertexNormalBuffer.itemSize, 
+                                gl.FLOAT, 
+                                false, 
+                                0, 
+                                0);
+
+            gl.drawArrays(gl.TRIANGLES, 0, teapotVertexPositionBuffer.numItems);
+        }
+        
+        if(document.getElementById("Pot2").checked) {
+            shadingType = document.getElementById("ShadingType2").value;
+            shaderProgram = shaderProgramList[shadingType];
+            gl.useProgram(shaderProgram);
+            setLight(shaderProgram);
+
+            // Setup Model-View Matrix
+            tr[0] = document.getElementById("tx2").value;
+            tr[1] = document.getElementById("ty2").value;
+            tr[2] = document.getElementById("tz2").value;
+            mat4.identity(mvMatrix);
+            mat4.translate(mvMatrix, tr);
+
+            mat4.identity(shearMatrix);
+            shearMatrix[4] = (shearMatrix[4] + document.getElementById("shearx2").value / 10);
+            shearMatrix[9] = (shearMatrix[9] + document.getElementById("sheary2").value / 10);
+            shearMatrix[2] = (shearMatrix[2] + document.getElementById("shearz2").value / 10);
+            mat4.multiply(mvMatrix, shearMatrix);
+
+            mat4.rotate(mvMatrix, degToRad(teapotAngle), [0, 1, 0]);
+            sc[0] = document.getElementById("scaleX2").value / 10;
+            sc[1] = document.getElementById("scaleY2").value / 10;
+            sc[2] = document.getElementById("scaleZ2").value / 10;
+            mat4.scale(mvMatrix,sc);
+            
+            
+            gl.uniformMatrix4fv(shaderProgram.pMatrixUniform, false, pMatrix);
+            gl.uniformMatrix4fv(shaderProgram.mvMatrixUniform, false, mvMatrix);
+
+            // Setup teapot position data
+            gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexPositionBuffer);
+            gl.vertexAttribPointer(shaderProgram.vertexPositionAttribute, 
+                                teapotVertexPositionBuffer.itemSize, 
+                                gl.FLOAT, 
+                                false, 
+                                0, 
+                                0);
+
+            // Setup teapot front color data
+            gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexFrontColorBuffer);
+            gl.vertexAttribPointer(shaderProgram.vertexFrontColorAttribute, 
+                                teapotVertexFrontColorBuffer.itemSize, 
+                                gl.FLOAT, 
+                                false, 
+                                0, 
+                                0);
+
+            // Setup teapot Vertex Normal data
+            gl.bindBuffer(gl.ARRAY_BUFFER, teapotVertexNormalBuffer);
+            gl.vertexAttribPointer(shaderProgram.vertexNormalAttribute, 
+                                teapotVertexNormalBuffer.itemSize, 
+                                gl.FLOAT, 
+                                false, 
+                                0, 
+                                0);
+
+            gl.drawArrays(gl.TRIANGLES, 0, teapotVertexPositionBuffer.numItems);
+        }
+        
+    }
+
+    function animate() {
+        var timeNow = new Date().getTime();
+        if (lastTime != 0) {
+            var elapsed = timeNow - lastTime;
+            teapotAngle += 0.03 * elapsed;
+        }
+        
+        lastTime = timeNow;
+    }
+
+    function tick() {
+        requestAnimFrame(tick);
+        drawScene();
+        animate();
+    }
+
+    function webGLStart() {
+        var canvas = document.getElementById("ICG-canvas");
+        initGL(canvas);
+        initShaders();
+        loadTeapot();
+
+        gl.clearColor(0.0, 0.2, 0.2, 1.0);
+        gl.enable(gl.DEPTH_TEST);
+
+        tick();
+    }
+</script>
+</head>
+
+<body onload="webGLStart();">
+    <canvas id="ICG-canvas" style="border: none;" width="1280" height="720"></canvas>
+    <br/>
+    <table style="border: 0; padding: 10px;">
+        <tr>
+            <th colspan="3" ><b>Teapot0<input type="checkbox" id="Pot0" checked></b></th>
+            <th colspan="3" ><b>Teapot1<input type="checkbox" id="Pot1" checked></b></th>
+            <th colspan="3" ><b>Teapot2<input type="checkbox" id="Pot2" checked></b></th>
+        </tr>
+        <tr>
+            <td colspan="3" >
+                <select name="shade_type0" id="ShadingType0">
+                    <option selected value="flat"> Flat Shading
+                    <option value="gouraud"> Gouraud Shading
+                    <option value="phong"> Phong Shading
+                </select>
+            </td>
+            <td colspan="3" >
+                <select name="shade_type1" id="ShadingType1">
+                    <option value="flat"> Flat Shading
+                    <option selected value="gouraud"> Gouraud Shading
+                    <option value="phong"> Phong Shading
+                </select>
+            </td>
+            <td colspan="3" >
+                <select name="shade_type2" id="ShadingType2">
+                    <option value="flat"> Flat Shading
+                    <option value="gouraud"> Gouraud Shading
+                    <option selected value="phong"> Phong Shading
+                </select>
+            </td>
+        </tr>
+        <tr">
+            <td><b>Position</b></td>
+            <td><b>Scale</b></td>
+            <td><b>Shear</b></td>
+            <td><b>Position</b></td>
+            <td><b>Scale</b></td>
+            <td><b>Shear</b></td>
+            <td><b>Position</b></td>
+            <td><b>Scale</b></td>
+            <td><b>Shear</b></td>
+        </tr>
+        <tr">
+            <td>X<input type="range" id="tx0" min="-40" max="40" value="-20"></td>
+            <td>X<input type="range" id="scaleX0" min="1" max="20" value="5"></td>
+            <td>X<br/><input type="range" id="shearx0" min="-10" max="10" value="5"></td>
+            <td>X<input type="range" id="tx1" min="-40" max="40" value="0"></td>
+            <td>X<input type="range" id="scaleX1" min="1" max="20" value="5"></td>
+            <td>X<br/><input type="range" id="shearx1" min="-10" max="10" value="0"></td>
+            <td>X<input type="range" id="tx2" min="-40" max="40" value="20"></td>
+            <td>X<input type="range" id="scaleX2" min="1" max="20" value="5"></td>
+            <td>X<br/><input type="range" id="shearx2" min="-10" max="10" value="0"></td>
+        </tr>
+        <tr">
+            <td>Y<input type="range" id="ty0" min="-30" max="30" value="0"></td>
+            <td>Y<input type="range" id="scaleY0" min="1" max="20" value="5"></td>
+            <td>Y<br/><input type="range" id="sheary0" min="-10" max="10" value="0"></td>
+            <td>Y<input type="range" id="ty1" min="-30" max="30" value="0"></td>
+            <td>Y<input type="range" id="scaleY1" min="1" max="20" value="5"></td>
+            <td>Y<br/><input type="range" id="sheary1" min="-10" max="10" value="5"></td>
+            <td>Y<input type="range" id="ty2" min="-30" max="30" value="0"></td>
+            <td>Y<input type="range" id="scaleY2" min="1" max="20" value="5"></td>
+            <td>Y<br/><input type="range" id="sheary2" min="-10" max="10" value="0"></td>
+        </tr>
+        <tr">
+            <td>Z<input type="range" id="tz0" min="-200" max="10" value="-40"></td>
+            <td>Z<input type="range" id="scaleZ0" min="1" max="20" value="5"></td>
+            <td>Z<br/><input type="range" id="shearz0" min="-10" max="10" value="0"></td>
+            <td>Z<input type="range" id="tz1" min="-200" max="10" value="-40"></td>
+            <td>Z<input type="range" id="scaleZ1" min="1" max="20" value="5"></td>
+            <td>Z<br/><input type="range" id="shearz1" min="-10" max="10" value="0"></td>
+            <td>Z<input type="range" id="tz2" min="-200" max="10" value="-40"></td>
+            <td>Z<input type="range" id="scaleZ2" min="1" max="20" value="5"></td>
+            <td>Z<br/><input type="range" id="shearz2" min="-10" max="10" value="5"></td>
+        </tr>
+    </table>
+    <table>
+        <tr>
+            <th colspan="2" ><b>Light0<input type="checkbox" id="Light0" checked></b></th>
+            <th colspan="2" ><b>Light1<input type="checkbox" id="Light1" checked></b></th>
+            <th colspan="2" ><b>Light2<input type="checkbox" id="Light2" checked></b></th>
+        </tr>
+        <tr>
+            <td><b>Position</b></td>
+            <td><b>Color</b></td>
+            <td><b>Position</b></td>
+            <td><b>Color</b></td>
+            <td><b>Position</b></td>
+            <td><b>Color</b></td>
+        </tr>
+        <tr>
+            <td>X<input type="range" id="x0" min="-40" max="40" value="-30"></td>
+            <td>R<input type="range" id="r0" min="0" max="255" value="255"></td>
+            <td>X<input type="range" id="x1" min="-40" max="40" value="0"></td>
+            <td>R<input type="range" id="r1" min="0" max="255" value="85"></td>
+            <td>X<input type="range" id="x2" min="-40" max="40" value="30"></td>
+            <td>R<input type="range" id="r2" min="0" max="255" value="85"></td>
+        </tr>
+        <tr>
+            <td>Y<input type="range" id="y0" min="-40" max="40" value="-20"></td>
+            <td>G<input type="range" id="g0" min="0" max="255" value="85"></td>
+            <td>Y<input type="range" id="y1" min="-40" max="40" value="0"></td>
+            <td>G<input type="range" id="g1" min="0" max="255" value="255"></td>
+            <td>Y<input type="range" id="y2" min="-40" max="40" value="20"></td>
+            <td>G<input type="range" id="g2" min="0" max="255" value="85"></td>
+        </tr>
+        <tr>
+            <td>Z<input type="range" id="z0" min="-80" max="10" value="-25"></td>
+            <td>B<input type="range" id="b0" min="0" max="255" value="85"></td>
+            <td>Z<input type="range" id="z1" min="-80" max="10" value="-25"></td>
+            <td>B<input type="range" id="b1" min="0" max="255" value="85"></td>
+            <td>Z<input type="range" id="z2" min="-80" max="10" value="-25"></td>
+            <td>B<input type="range" id="b2" min="0" max="255" value="255"></td>
+        </tr>
+    </table>
+</body>
+
+</html>
