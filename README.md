@@ -4,7 +4,7 @@
 
 Some studies of WebGL, originally a homework of Interactive Computer Graphics 2021 Spring.
 
-Plan to study and when I want.
+Plan to study when I want.
 
 ## Features
 
