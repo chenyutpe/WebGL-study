@@ -22,7 +22,7 @@ Plan to study and when I want.
 
 ## Screenshot
 
-![image](./Screenshots/ss_2021-05-13.jpg)
+![image](https://github.com/chenyutpe/WebGL-study/blob/main/screenshots/ss_2021-05-13.jpg)
 
 ## Notes
 
